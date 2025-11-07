@@ -10,7 +10,8 @@ export const Badge: React.FC<BadgeProps> = ({
   variant = "default",
   ...props
 }) => {
-  const base = "inline-flex items-center px-2 py-1 rounded-md text-sm font-medium";
+  const base =
+    "inline-flex items-center px-2 py-1 rounded-md text-sm font-medium";
   const variants: Record<string, string> = {
     default: "bg-gray-100 text-gray-800",
     secondary: "bg-muted text-muted-foreground",
