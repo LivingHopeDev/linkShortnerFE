@@ -1,206 +1,86 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router";
-import { Button } from "../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { Skeleton } from "../components/ui/skeleton";
-import {
-  ArrowLeft,
-  ExternalLink,
-  Calendar,
-  MousePointerClick,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router";
 
-interface UrlInfo {
-  originalUrl: string;
-  createdAt: string;
-  visitCount: number;
+interface UrlInfoResponse {
+  success: boolean;
+  message: string;
+  data: {
+    originalUrl: string;
+    createdAt: string;
+    visitCount: number;
+  };
+  status_code: number;
 }
 
-interface ErrorResponse {
-  error: string;
-}
-
-function Details() {
+export default function Details() {
   const { code } = useParams<{ code: string }>();
-  const navigate = useNavigate();
-  const [data, setData] = useState<UrlInfo | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [info, setInfo] = useState<UrlInfoResponse["data"] | null>(null);
   const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    fetchDetails();
+    const fetchInfo = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/info/${code}`);
+        const data: UrlInfoResponse = await res.json();
+        if (!res.ok) throw new Error(data.message || "Not found");
+        setInfo(data.data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInfo();
   }, [code]);
 
-  const fetchDetails = async (): Promise<void> => {
-    try {
-      const response = await fetch(`http://localhost:5000/info/${code}`);
-      const result: UrlInfo | ErrorResponse = await response.json();
+  if (loading)
+    return <p className="text-gray-600 text-center">Loading URL info...</p>;
 
-      if (!response.ok) {
-        throw new Error(
-          (result as ErrorResponse).error || "Failed to fetch details"
-        );
-      }
-
-      setData(result as UrlInfo);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not find this shortened URL"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Format date to relative time
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = Math.floor((now.getTime() - date.getTime()) / 1000); // seconds
-
-    if (diff < 60) return "Just now";
-    if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
-    if (diff < 2592000) return `${Math.floor(diff / 86400)} days ago`;
-
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  if (loading) {
+  if (error)
     return (
-      <div className="max-w-2xl mx-auto">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <Skeleton className="h-8 w-48" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <Skeleton className="h-24" />
-              <Skeleton className="h-24" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="text-center">
+        <p className="text-red-500 mb-4">{error}</p>
+        <Link to="/" className="text-indigo-600 hover:underline font-semibold">
+          Go back home
+        </Link>
       </div>
     );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <Card className="shadow-lg">
-          <CardContent className="p-8 text-center">
-            <div className="text-6xl mb-4">🔍</div>
-            <CardTitle className="text-2xl mb-2">URL Not Found</CardTitle>
-            <p className="text-muted-foreground mb-6">
-              {error ||
-                "This shortened URL does not exist or has been removed."}
-            </p>
-            <Button onClick={() => navigate("/")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <Card className="shadow-lg animate-fadeIn">
-        <CardHeader>
-          <CardTitle className="text-2xl">URL Details</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Original URL */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">
-              Original URL
-            </label>
-            <a
-              href={data.originalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-primary hover:underline break-all"
-            >
-              <ExternalLink className="h-4 w-4 flex-shrink-0" />
-              {data.originalUrl}
-            </a>
-          </div>
-
-          {/* Short URL */}
-          <div className="space-y-2 pb-4 border-b">
-            <label className="text-sm font-medium text-muted-foreground">
-              Short URL
-            </label>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="font-mono">
-                http://localhost:5000/{code}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Calendar className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Created</p>
-                    <p className="text-lg font-semibold">
-                      {formatDate(data.createdAt)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <MousePointerClick className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Total Clicks
-                    </p>
-                    <p className="text-lg font-semibold">
-                      {data.visitCount.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Button
-            onClick={() => navigate("/")}
-            className="w-full"
-            variant="outline"
+    <div className="w-full max-w-md bg-white shadow-lg rounded-2xl p-6">
+      <h2 className="text-xl font-semibold text-gray-700 mb-4 text-center">
+        URL Details
+      </h2>
+      <div className="text-gray-600 space-y-2">
+        <p>
+          <span className="font-medium">Original URL:</span>{" "}
+          <a
+            href={info?.originalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-600 hover:underline break-all"
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Create Another Short URL
-          </Button>
-        </CardContent>
-      </Card>
+            {info?.originalUrl}
+          </a>
+        </p>
+        <p>
+          <span className="font-medium">Created:</span>{" "}
+          {info?.createdAt ? new Date(info.createdAt).toLocaleString() : "N/A"}
+        </p>
+        <p>
+          <span className="font-medium">Visits:</span> {info?.visitCount}
+        </p>
+      </div>
+
+      <div className="mt-6 text-center">
+        <Link
+          to="/"
+          className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+        >
+          Shorten Another
+        </Link>
+      </div>
     </div>
   );
 }
-
-export default Details;
